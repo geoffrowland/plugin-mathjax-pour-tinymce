@@ -1,7 +1,7 @@
 # Plugin mathjax pour tinymce 
 
 Ce plugin pour l'éditeur tinymce (<http://www.tinymce.com/>) utilise mathjax (<http://www.mathjax.org/>) afin de permettre l'édition et l'affichage de formules mathématiques dans l'éditeur.
-
+![plugin en fonctionnement](http://moodle.albert-thomas.org/file.php/1/demo.png)
 ## Installation :
 
 - dans le dossier `plugins` de tinymce, créer un dossier 'mathjax' et y déposer les fichiers de ce dépôt.
