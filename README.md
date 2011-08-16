@@ -20,7 +20,7 @@ Ce plugin pour l'éditeur tinymce (<http://www.tinymce.com/>) utilise mathjax (<
 
 ## Mise en garde : 
 
-- ce plugin est encore loin d'être rôdé ...
+- ce plugin est loin d'être rôdé ...
 - il ne fonctionnera pas sous ie (en l'état, il fera planter tinymce sous ce navigateur :-(),
 - il n'a été testé que sous firefox (3 ou +) et chrome.
 
