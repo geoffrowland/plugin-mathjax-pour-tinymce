@@ -111,7 +111,7 @@
                 if(o.save || o.source_view) o.content = t._cleanMath(o.content);//sert à éliminer le contenu spécifique produit par MathJax.
             //console.log("onPostProcess after",o.content);
             });
-
+            
             //Avant que l'écriture dans le corp du document 
             //o.initial : si le document est chargé pour la première fois ; o.source_view : si les sources sont mises à jour dans la fenêtre html
             ed.onBeforeSetContent.add(function(ed,o){
