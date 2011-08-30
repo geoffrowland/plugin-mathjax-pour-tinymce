@@ -23,8 +23,8 @@ Ce plugin pour l'éditeur **tinymce** (<http://www.tinymce.com/>) utilise **Math
 
 ## Mise en garde : 
 
-- ce plugin est encore loin d'être rôdé ...
-- En l'état, il **ne fonctionne pas sous ie** (il fera planter tinymce sous ce navigateur :-(),
+- ce plugin est loin d'être rôdé ...
+- il ne fonctionnera pas sous ie (en l'état, il fera planter tinymce sous ce navigateur :-(),
 - il n'a été testé que sous firefox (3 ou +) et chrome.
 
 ## Démo : à venir ...
