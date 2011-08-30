@@ -185,7 +185,7 @@
                 
                 var math = t._ismath(n);
                 
-                //on désactive les controls lorsqu'on est dans une formule (reste une difficulté avec la commande undo !)
+                //on désactive les controls lorsqu'on est dans une formule (la commande undo n'est pas désactivée !)
                 if(math) each(cm.controls,function(v,k){
                     v.setDisabled(1)
                 });
@@ -589,13 +589,16 @@
             sel.setRng(rng);
         },
         
-        //Est appelé lorsqu'on sort d'une formule.
+        //est appelée lorsqu'on sort d'une formule.
         _removeMathHandler: function(){
-            var t = this, dom = t.dom;
+            var t = this, dom = t.dom, cm = t.editor.controlManager;
             t._mathTypeset(t.mathedit);//on commence par appliquer mathJax sur cette formule.
             t.mathedit = null;
             t.mathBox = dom.remove(cmj+"box");
             t.doc.removeEventListener("keyup",t.mathViewHandler,false);//on supprime l'écouteur définit dans _mathPreview.
+            each(cm.controls,function(v,k){
+                v.setDisabled(0)
+            });
             t.mathViewHandler = null;
         },
         
@@ -655,7 +658,7 @@
         '});\n'+
         'MathJax.Hub.Startup.onload();',
     
-        //lors d'un setContent ou d'un getContent avec o.format = "html", tinymce pollue les formules affichées qui ne sont alors plus éditable.
+        //lors d'un setContent ou d'un getContent avec o.format = "html", tinymce pollue les formules affichées qui ne sont alors plus éditables.
         //1ère solution : forcer le format o.format = "raw" lors de ces actions.
         //2ème solution (serait plus propre ...) : agir sur le schéma.
         _testSchemaSettings : function(){
@@ -689,6 +692,7 @@
             t.mathBox = null;
         },
         
+        //insère un espace autour des inégalités strictes 
         _norm : function(str){
             var text = str;
             text = text.replace(/(<|>)(?=[^\s])/gi,"$1 ");
@@ -700,7 +704,7 @@
             var t = this, html;
             if(t.mathedit){
                 t._removeMathHandler(t.mathedit)
-                }
+            }
             t.queue.Push(function(){
                 t._nettoyer();
                 html = t.editor.getContent();
