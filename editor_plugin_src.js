@@ -55,7 +55,6 @@
             t.win = null;
             t.editor = ed;
             t.dom = null;
-            t.lastedit = null;
             t.doc = null;
             t.MathJax = null;
             t.queue = null;
@@ -69,7 +68,7 @@
             };
             t.fullscreenInit = false;
             t.actif = false;
-            t.parent = null;
+            t.parent = null;//sert à gérer les aller-retour en mode plein écran
             t.JAX = new Array(1000);
             t.mathID = 0;
             t.spanID = 0;
@@ -107,17 +106,15 @@
             // o.content la chaine obtenue ; o.save vaut true si le formulaire qui contient l'éditeur est soumis au serveur.
             // o.source_view vaut true si l'utilisateur a appuyé sur le bouton "html".
             ed.onPostProcess.add(function(ed,o){
-                //console.log("onPostProcess before",o.content);
                 if(o.save || o.source_view) o.content = t._cleanMath(o.content);//sert à éliminer le contenu spécifique produit par MathJax.
-            //console.log("onPostProcess after",o.content);
             });
             
             //Avant que l'écriture dans le corp du document 
             //o.initial : si le document est chargé pour la première fois ; o.source_view : si les sources sont mises à jour dans la fenêtre html
             ed.onBeforeSetContent.add(function(ed,o){
-                //if(!o.source_view) 
-                o.format = "raw";
+                o.format = "raw";//empêche le formatage de tinymce
                 if(o.initial || o.source_view) o.content = t._marqueMath(o.content);
+                //le code source du document est modifié, on se prépare à «recompiler» les formules
                 if(o.source_view && t.actif) o.typeset = true;
             });
             
@@ -141,11 +138,14 @@
             });
             
             ed.onBeforeGetContent.add(function(ed,o){
+                console.log("BeforeGetContent",o.content);
                 if(!o.source_view) o.format = "raw";
                 //console.log("onBeforeGetContent :",ed, o);
-                if(o.source_view) t._cleanMessage();
+                if(o.source_view) {
+                    t._cleanMessage();
+                }
             });
-            
+                        
             //Lorsqu'on revient du mode plein écran, on met à jour l'ID du parent
             ed.onBeforeExecCommand.add(function(ed, cmd){
                 var mathID, spanID; 
@@ -159,14 +159,14 @@
                 }
             });
             
-            //@TODO : Pour chrome, nous encadrons la formule en cours d'édition par une paire de $.
-            //il faudrait veiller à ce que 1. il soit impossible de les supprimer 2. lorsque le curseur dépasse le dernier dollar, on simule une sortie ...
+            //@TODO (webkit) : il faudrait veiller à ce que 1. il soit impossible de supprimer les $ 2. lorsque le curseur dépasse le dernier dollar, on simule une sortie ...
             ed.onNodeChange.add(function(ed, cm, n, c) {//cm->controlManager, n == ed.selection.getNode(), c-> collapsed ?
                 //console.log("NodeChange :", arguments,"\nUndoManager",ed.undoManager);
                 var win = t.win, dom = t.dom, cmp = t.completion; 
                 
                 if(!(t.MathJax && t.actif)) return;
                 
+                //on profite du nodeChange initial au retour du mode fullscreen pour recalculer les maths
                 if(t.fullscreenInit && ed.id.indexOf("fullscreen") == -1){
                     t.actif = false;
                     t.fullscreenInit = false;
@@ -186,8 +186,9 @@
                 var math = t._ismath(n);
                 
                 //on désactive les controls lorsqu'on est dans une formule (la commande undo n'est pas désactivée !)
+                //@TODO : trouver un moyen de désactiver la commande undo lors de la saisie d'une formule
                 if(math) each(cm.controls,function(v,k){
-                    v.setDisabled(1)
+                    v.setDisabled(1);
                 });
                 
                 //pas de formule à traduire ; hors maths ou dans une formule en cours d'édition ... => rien à faire !
@@ -223,7 +224,7 @@
                 } 
             });
 
-            ed.addShortcut('ctrl+m','activeMathJax',function(){
+            ed.addShortcut('ctrl+m','toggleMathJax',function(){
                 var ed = t.editor;
                 
                 if(!t.actif) {
@@ -234,6 +235,7 @@
                 }
             });
             
+            //gestion de la complétion de commande.
             ed.onKeyDown.add(function(ed,ev){
                 if(!t.MathJax || !t.actif) return;
                 if (ev.ctrlKey && ev.which == 32) {//Ctrl+espace
@@ -551,11 +553,13 @@
             function rep(re, str) {
                 content = content.replace(re, str);
             };
-            
-            //rep(/<span[^>]*?mcemathinline mcemathv[^>]*?>.*?\n.*?\n(.*?)\n.*?\n<\/span>/g,"\\($1\\)");
-            //rep(/<span[^>]*?mcemathdisplaystyle mcemathv[^>]*?>.*?\n.*?\n(.*?)\n.*?\n<\/span>/g,"\\[$1\\]");
+            //les deux lignes qui suivent servent à éliminer le html relatif aux formules en cours après que tinymce ait sérializer le document en mode "html"
+            rep(/<span[^>]*?mcemathinline mcemathv[^>]*?>.*?\n.*?\n(.*?)\n.*?\n<\/span>/g,"\\($1\\)");
+            rep(/<span[^>]*?mcemathdisplaystyle mcemathv[^>]*?>.*?\n.*?\n(.*?)\n.*?\n<\/span>/g,"\\[$1\\]");
+            //pour éliminer le html après une sérialisation en mode "raw"
             rep(/<span[^>]*?mcemathinline mcemathv[^>]*?>.*?<script[^>]*?>(.*?)<\/script><\/span>/g,"\\($1\\)");
             rep(/<span[^>]*?mcemathdisplaystyle mcemathv[^>]*?>.*?<script[^>]*?>(.*?)<\/script><\/span>/g,"\\[$1\\]");
+            //on élimine les marqueurs de formules
             rep(/<span[^>]*?mcemathjax mcemathinline[^>]*?>\\\((.*?)\\\)<\/span>/g,"\\($1\\)");
             rep(/<span[^>]*?mcemathjax mcemathdisplaystyle[^>]*?>\\\((.*?)\\\)<\/span>/g,"\\[$1\\]");
             rep(/<span[^>]*?mcemathjax mcemathinline[^>]*?>\$(.*?)\$<\/span>/g,"\\($1\\)");
@@ -565,7 +569,6 @@
         
         //MathJax pollue le document (body) avec trois div (deux au début, la dernière tout à la fin)
         _cleanMessage : function(){
-            //if(this.isMessageClean) return;
             var dom = this.dom
             var el1 = dom.get("MathJax_Hidden");
             if(el1) el1 = el1.parentNode;
@@ -574,7 +577,6 @@
             if(el1) dom.remove(el1);
             if(el2) dom.remove(el2);
             if(el3) dom.remove(el3);
-        //this.isMessageClean = true;
         },
         
         _selection: function(node){
@@ -596,7 +598,7 @@
             t.mathedit = null;
             t.mathBox = dom.remove(cmj+"box");
             t.doc.removeEventListener("keyup",t.mathViewHandler,false);//on supprime l'écouteur définit dans _mathPreview.
-            each(cm.controls,function(v,k){
+            each(cm.controls,function(v,k){//réactivation des controles de l'éditeur.
                 v.setDisabled(0)
             });
             t.mathViewHandler = null;
@@ -643,8 +645,6 @@
             t.doc.addEventListener("keyup",t.mathViewHandler,false);
         },
 
-        isMessageClean : false,
-
         config : 'MathJax.Hub.Config({' +
         'tex2jax: {inlineMath: [ ["$","$"], ["\\\\(","\\\\)"] ], displayMath: [ ["$$","$$"], ["\\\\[","\\\\]"] ], processEscapes: true, processEnvironments: true},'+
         '"HTML-CSS" : {showMathMenu : false},'+
@@ -682,6 +682,7 @@
                 }
             });
         },
+        
         
         _nettoyer : function(){
             var t = this;
@@ -750,15 +751,6 @@
                         t.actif = true;
                         t.mathBox = null;
                         t._globalMathTypeset(t.parent.MathJax.ElementJax.ID,t.parent.MathJax.OutputJax["HTML-CSS"].ID);
-                    //                        t.queue.Push(function(){
-                    //                            t.MathJax.Hub.Typeset(t.mathBox);
-                    //                        },function(){
-                    //                            t.MathJax.ElementJax.ID = t.parent.MathJax.ElementJax.ID;
-                    //                            t.MathJax.OutputJax["HTML-CSS"].ID = t.parent.MathJax.OutputJax["HTML-CSS"].ID;
-                    //                            t.JAX[0]=t.mathBox.lastChild.MathJax;
-                    //                        },function(){
-                    //                            t._globalMathTypeset();
-                    //                        })
                     }
                     t.onMathjaxReady.dispatch();
                     
