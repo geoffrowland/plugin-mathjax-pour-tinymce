@@ -14,7 +14,7 @@ Ce plugin pour l'éditeur **tinymce** (<http://www.tinymce.com/>) utilise **Math
 
 ## Utilisation basique :
 
-- Le raccourci clavier `ctrl+m` active/désactive les principales fonctionnalités du plugin
+- Le raccourci clavier `ctrl+m` active/désactive les principales fonctionnalités du plugin,
 - lorsqu'il est activé, l'appui sur la touche `$` insère une «zone de saisie»,
 - on y tape une formule LaTeX qui est rendu au fur et à mesure de la saisie dans le coin supérieur droit de la fenêtre,
 - une fois arrivé au résultat souhaité, il suffit de sortir de la «zone de saisie» pour que celle-ci soit remplacée par la formule correspondante,
