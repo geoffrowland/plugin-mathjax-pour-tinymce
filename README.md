@@ -3,6 +3,8 @@
 Ce plugin pour l'éditeur **tinymce** (<http://www.tinymce.com/>) utilise **MathJax** (<http://www.mathjax.org/>) afin de permettre l'édition et l'affichage de formules mathématiques dans l'éditeur.
 ![plugin en fonctionnement](http://moodle.albert-thomas.org/file.php/1/demo.png)
 
+## Démo : <http://tinymath.albert-thomas.org>
+
 ## Installation :
 
 - Télécharger le dépôt, 
@@ -27,4 +29,4 @@ Ce plugin pour l'éditeur **tinymce** (<http://www.tinymce.com/>) utilise **Math
 - il ne fonctionnera pas sous ie (en l'état, il fera planter tinymce sous ce navigateur :-(),
 - il n'a été testé que sous firefox (3 ou +) et chrome.
 
-## Démo : <http://tinymath.albert-thomas.org>
+
