@@ -27,4 +27,4 @@ Ce plugin pour l'éditeur **tinymce** (<http://www.tinymce.com/>) utilise **Math
 - il ne fonctionnera pas sous ie (en l'état, il fera planter tinymce sous ce navigateur :-(),
 - il n'a été testé que sous firefox (3 ou +) et chrome.
 
-## Démo : à venir ...
+## Démo : <http://tinymath.albert-thomas.org>
