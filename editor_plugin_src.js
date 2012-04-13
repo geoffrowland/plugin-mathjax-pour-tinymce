@@ -731,7 +731,7 @@
             //Chargement du script principal via le CDN (et si jamais le CDN de MathJax était indisponible ?)
             var script2 = dom.create('script',{
                 type:"text/javascript",
-                src:"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML-full,"+url+"/js/macro"
+                src:"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_HTMLorMML,"+url+"/js/macro"
             });
             var head = doc.getElementsByTagName("head")[0];
             head.appendChild(script1);
