@@ -89,7 +89,7 @@
                 if(ed.id.indexOf('fullscreen') != -1) {
                     t.fullscreenInit = true;
                     //parent est une référence vers l'instance du plugin mathjax de l'éditeur parent.
-                    t.parent = tinymce.get(ed.settings.fullscreen_editor_id).plugins.mathjax;
+                    t.parent = tinymce.get(ed.settings.fullscreen_editor_id).plugins.tinymath;
                     t.mathBox = t.parent.mathBox;
                 }
 
@@ -772,5 +772,5 @@
     });
 
     // Register plugin
-    tinymce.PluginManager.add('mathjax', tinymce.plugins.MathjaxPlugin);
+    tinymce.PluginManager.add('tinymath', tinymce.plugins.MathjaxPlugin);
 })();

@@ -23,7 +23,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-var url = window.top.tinymce.activeEditor.plugins.mathjax.url;
+var url = window.top.tinymce.activeEditor.plugins.tinymath.url;
 
 MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
   var TEX = MathJax.InputJax.TeX;
