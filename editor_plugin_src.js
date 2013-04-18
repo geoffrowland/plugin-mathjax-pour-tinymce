@@ -11,14 +11,12 @@
 //@TODO gérer le passage en mode plein écran lorsqu'une formule est en cours d'édition.
 
 (function() {
-    var Event = tinymce.dom.Event;
     //Les différentes classes utilisées pour le rendu et autre ...
-    var cmj = "mcemathjax",  cmji = "mcemathinline", cmjd = "mcemathdisplaystyle", cmjv ="mcemathv", cmje = "mcemathedit",each = tinymce.each;// MathJax = null, queue = null;
-    var delim = [];
-    delim["{"] = "}";
-    delim["("]=")";
-    delim["["]="]";
-    var texCommands = ["above","abovewithdelims","acute","aleph","alpha","amalg","And","angle","approx","approxeq","arccos","arcsin","arctan","arg","array","Arrowvert","arrowvert","ast","asymp","atop","atopwithdelims",
+    var cmj = "mcemathjax",  cmji = "mcemathinline", cmjd = "mcemathdisplaystyle", cmjv ="mcemathv", cmje = "mcemathedit",
+    each = tinymce.each, Event = tinymce.dom.Event,// MathJax = null, queue = null;
+    delim = []; delim["{"] = "}"; delim["("]=")"; delim["["]="]",
+    
+    texCommands = ["above","abovewithdelims","acute","aleph","alpha","amalg","And","angle","approx","approxeq","arccos","arcsin","arctan","arg","array","Arrowvert","arrowvert","ast","asymp","atop","atopwithdelims",
     "backepsilon","backprime","backsim","backsimeq","backslash","backslash","bar","barwedge","Bbb","Bbbk","because","begin","beta","beth","between","bf","Big","big","bigcap","bigcirc","bigcup","Bigg","bigg","Biggl","biggl","Biggm","biggm","Biggr","biggr","Bigl","bigl","Bigm","bigm","bigodot","bigoplus","bigotimes","Bigr","bigr","bigsqcup","bigstar","bigtriangledown","bigtriangleup","biguplus","bigvee","bigwedge","binom","blacklozenge","blacksquare","blacktriangle","blacktriangledown","blacktriangleleft","blacktriangleright","bmod","boldsymbol","bot","bowtie","Box","boxdot","boxed","boxminus","boxplus","boxtimes","brace","bracevert","brack","breve","buildrel","bullet","Bumpeq","bumpeq",
     "cal","cap","Cap","cases","cdot","cdotp","cdots","centerdot","cfrac","check","checkmark","chi","choose","circ","circeq","circlearrowleft","circlearrowright","circledast","circledcirc","circleddash","circledR","circledS","class","clubsuit","colon","color","complement","cong","coprod","cos","cosh","cot","coth","cr","csc","cssId","cup","Cup","curlyeqprec","curlyeqsucc","curlyvee","curlywedge","curvearrowleft","curvearrowright",
     "dagger","daleth","dashleftarrow","dashrightarrow","dashv","dbinom","ddagger","ddddot","dddot","ddot","ddots","DeclareMathOperator","def","deg","Delta","delta","det","dfrac","diagdown","diagup","diamond","Diamond","diamondsuit","digamma","dim","displaylines","displaystyle","div","divideontimes","dot","doteq","Doteq","doteqdot","dotplus","dots","dotsb","dotsc","dotsi","dotsm","dotso","doublebarwedge","doublecap","doublecup","Downarrow","downarrow","downdownarrows","downharpoonleft","downharpoonright",
@@ -51,33 +49,20 @@
         
         init : function(ed, url) {
             var t = this;
-            t.url = url;
-            t.win = null;
-            t.editor = ed;
-            t.dom = null;
-            t.doc = null;
-            t.MathJax = null;
-            t.queue = null;
-            t.mathViewHandler = null;
-            t.mathBox = null;//div de pré-visualisation des formules en cours d'édition
+            t.url = url; t.win = null; t.editor = ed; t.dom = null; t.doc = null; 
+            t.MathJax = null; t.queue = null; t.JAX = new Array(1000); t.mathID = 0; t.spanID = 0; t.onMathjaxReady = new tinymce.util.Dispatcher(t);
+            t.mathViewHandler = null; t.mathBox = null;//div de pré-visualisation des formules en cours d'édition
             t.completion = {//est utile popur la complétion de commande via ctrl+space
                 ideb: -1, //indice de début pour la commande en cours dans texCommands
                 iend: 1, //fin de la selection courante
                 dec: 0,//lorsqu'on fait ctrl+space plusieurs fois de suite, indique la nouvelle commande à afficher
                 nc: 2 //Pour gérer les 2 nodeChange produit par le raccourci ctrl+space
             };
-            t.fullscreenInit = false;
-            t.actif = false;
-            t.parent = null;//sert à gérer les aller-retour en mode plein écran
-            t.JAX = new Array(1000);
-            t.mathID = 0;
-            t.spanID = 0;
-            t.onMathjaxReady = new tinymce.util.Dispatcher(t);
+            t.fullscreenInit = false; t.parent = null;//sert à gérer les aller-retour en mode plein écran
+            t.actif = false; t.cleanPath = false;
 
             ed.onPreInit.add(function(ed){               
-                t.dom = ed.dom;
-                t.win = ed.getWin();
-                t.doc = ed.getDoc(); 
+                t.dom = ed.dom; t.win = ed.getWin(); t.doc = ed.getDoc(); 
                 t.mathBox = t.dom.create("div",{
                     id:cmj+"box", 
                     'class':cmj+"box", 
@@ -94,15 +79,12 @@
                 }
 
                 t._mathjaxInit(url);
-                
                 t._testSchemaSettings();
                 
-                ed.formatter.register('test',{
+                //sert à inserer une formule
+                ed.formatter.register('math',{
                 	inline:"span",
-                	attributes: {'class':cmj+' '+cmji+' '+cmje }
-                });
-                ed.addShortcut('ctrl+D','truc',function(){
-                	t.editor.formatter.apply('test');
+                	attributes: {'class':cmj+' '+cmji+' '+cmje}
                 });
             });
             
@@ -156,7 +138,6 @@
                         
             //Lorsqu'on revient du mode plein écran, on met à jour l'ID du parent
             ed.onBeforeExecCommand.add(function(ed, cmd){
-                var mathID, spanID; 
                 if(cmd == "mceFullScreen" && t.parent) {
                     if(!t.actif && t.parent.actif){
                         t.parent.mathID = -1;   
@@ -167,12 +148,16 @@
                 }
             });
             
-            //@TODO (webkit) : il faudrait veiller à ce que 1. il soit impossible de supprimer les $ 2. lorsque le curseur dépasse le dernier dollar, on simule une sortie ...
             ed.onNodeChange.add(function(ed, cm, n, c) {//cm->controlManager, n == ed.selection.getNode(), c-> collapsed ?
                 //console.log("NodeChange :", arguments,"\nUndoManager",ed.undoManager);
-                var win = t.win, dom = t.dom, cmp = t.completion; 
+                var dom = t.dom, cmp = t.completion; 
                 
                 if(!(t.MathJax && t.actif)) return;
+                
+                if (t.cleanPath){
+                	t.cleanPath = !t.cleanPath;
+                	return;
+                }
                 
                 //on profite du nodeChange initial au retour du mode fullscreen pour recalculer les maths
                 if(t.fullscreenInit && ed.id.indexOf("fullscreen") == -1){
@@ -195,46 +180,16 @@
                 
                 //on désactive les controls lorsqu'on est dans une formule (la commande undo n'est pas désactivée !)
                 //@TODO : trouver un moyen de désactiver la commande undo lors de la saisie d'une formule
-                if(math) each(cm.controls,function(v,k){
-                    v.setDisabled(1);
-                });
-                
+                if(math) each(cm.controls,function(v,k){v.setDisabled(1);});
                 //pas de formule à traduire ; hors maths ou dans une formule en cours d'édition ... => rien à faire !
                 if(!math && !t.mathedit) return;
                 //nous entrons dans une formule interprétée ...
-                else if(math && dom.hasClass(math,cmjv)) {
-                    // Si il reste une formule à interpréter qui n'est pas celle-ci, on s'en occupe
-                    if(t.mathedit && t.mathedit !== math){
-                        t._removeMathHandler();
-                    }
-                    //Pour la formule courante
-                    var tab, TEX, form;
-                    tab = dom.select(".MathJax",math);//console.log(tab);
-                    if(tab.length != 0) tab[tab.length-1].setAttribute("style","display:none;");
-                    TEX = math.lastChild.text;
-                    form = t.doc.createTextNode(dom.hasClass(math,cmjd) ? TEX.substring(14,TEX.length -1): TEX);
-                    if(tinymce.isWebKit) form.data = "$"+form.data+"$";
-                    math.insertBefore(form,math.firstChild);
-                    
-                    dom.removeClass(math,cmjv);
-                    dom.addClass(math,cmje);
-                    t.mathedit = math;
-                    
-                    //gestion du curseur
-                    t._selection(math);
-                    
-                    //rendre la formule en cours de traitement ...
-                    t._mathPreview(math);
-
+                else if(math && dom.hasClass(math,cmjv)) t.view2edit(math);
                 //on sort juste d'une formule en cours d'édition
-                } else if(!math && t.mathedit) {
-                    t._removeMathHandler();
-                } 
+                else if(!math && t.mathedit) t._removeMathHandler();
             });
 
-            ed.addShortcut('ctrl+m','toggleMathJax',function(){
-                var ed = t.editor;
-                
+            ed.addShortcut('ctrl+m','toggleMathJax',function(){                
                 if(!t.actif) {
                     t.actif = true;
                     t._globalMathTypeset();
@@ -287,37 +242,12 @@
             
             ed.onKeyPress.add(function(ed,ev){
                 if(!t.actif) return;
-                var dom = t.dom, win = t.win, sel = ed.selection, n = sel.getNode(), math = null, texn = null, tex = "", rng = null;
-                //if(!t.MathJax) return;
-                var key = String.fromCharCode(ev.charCode);// || ev.keyCode); pose des pbs avec firefox.
-                //console.log(ev + " :" + key);
+                var dom = t.dom, sel = ed.selection, n = sel.getNode(), math = t._ismath(n), texn = null, tex = "", rng = null;
+                var key = String.fromCharCode(ev.charCode);
                 if (key == '$' && !ev.ctrlKey) {
                     Event.cancel(ev);//empêche l'insertion ordinaire de '$'
-                    each(ed.controlManager.controls,function(v,k){
-                        v.setDisabled(1);
-                    });
-                    math = t._ismath(n);
-                    if(math) {//si on est déjà dans une formule, on change de mode : mode en ligne -> mode block ou le contraire.
-                        if(dom.hasClass(math,cmjv)) return;
-                        dom.hasClass(math,cmji)?
-                        math.setAttribute("class",cmj+" "+cmjd+" "+cmje):
-                        math.setAttribute("class",cmj+" "+cmji+" "+cmje);
-                        return;
-                    }
-                    
-                    //On insère une formule en édition et on met le curseur entre les $$ (?).
-                    var entity = '<span id="tmp" class="'+cmj+' '+cmji+' '+cmje+'"></span>';
-                    ed.selection.setContent(entity);
-                    var elt = dom.get("tmp");
-                    elt.removeAttribute("id");
-                    t._selection(elt);//ed.selection.select(elt.firstChild);ed.selection.collapse(true);
-                    
-                    //rendre la formule en cours de traitement ...
-                    if(t.MathJax && t.actif) t._mathPreview(elt);
-
-                    t.mathedit = elt;
-                    ed.undoManager.clear();
-                } else if((key == '{' || key == '(' || key =='[') && t._ismath(n)){
+                    t.insertMath(math);
+                } else if(math && (key == '{' || key == '(' || key =='[')){
                     //if(tinymce.isGecko && ev.charCode == 0) return;//la touche "flèche vers le bas" a un keyCode de 40 qui donne key == "(" !; son charCode est nul.
                     Event.cancel(ev);//alert('ok');
                     texn = n.firstChild;
@@ -327,8 +257,8 @@
                     rng.setStart(texn,start+1);
                     rng.setEnd(texn, end+1);
                     sel.setRng(rng);
-                } else if((ev.charCode >= 65 && ev.charCode <= 90 || ev.charCode >=97 && ev.charCode <=122)//afin de visualiser la partie du tableau TexCommands adéquate.
-                    && (math = t._ismath(n)) && dom.hasClass(math,cmje) && t.actif){
+                } else if(math && dom.hasClass(math,cmje) && (ev.charCode >= 65 && ev.charCode <= 90 || ev.charCode >=97 && ev.charCode <=122)){
+                	//afin de visualiser la partie du tableau TexCommands adéquate.
                     texn = n.firstChild; 
                     if(!sel.isCollapsed()) return;
                     rng = sel.getRng();
@@ -345,7 +275,7 @@
                         };
                     }
                     if(ideb == -1) return;
-                    iend = ideb+iend;
+                    iend = ideb + iend;
                 //console.log(texCommands.slice(ideb,iend));
                 }
             });
@@ -371,13 +301,64 @@
             return null;
         },
         
+        insertMath: function(math){
+        	var t = this, ed = t.editor, dom = t.dom;
+        	each(ed.controlManager.controls,function(v,k){ v.setDisabled(1);});
+        	//bof, est-ce bien utile ?
+            if(math) {//si on est déjà dans une formule, on change de mode : mode en ligne -> mode block ou le contraire.
+                if(dom.hasClass(math,cmjv)) return;
+                dom.hasClass(math,cmji)?
+                math.setAttribute("class",cmj+" "+cmjd+" "+cmje):
+                math.setAttribute("class",cmj+" "+cmji+" "+cmje);
+                return;
+            }
+            
+            //On insère une formule en édition 
+            ed.formatter.apply('math');
+            var entity = ed.selection.getStart();                    
+            //rendre la formule en cours de traitement ...
+            if(t.MathJax) t._mathPreview(entity);
+
+            t.mathedit = entity;
+            ed.undoManager.clear();
+        },
+        
+        view2edit: function(math){
+        	var t = this, ed = t.editor, doc = t.doc, dom = t.dom, tab, TEX, form;
+        	if(t.mathedit && t.mathedit !== math){
+                t._removeMathHandler();
+            }
+            //Pour la formule courante
+            tab = dom.select(".MathJax",math);//console.log(tab);
+            if(tab.length != 0) tab[tab.length-1].setAttribute("style","display:none;");
+            TEX = math.querySelector('script').text;
+            form = doc.createTextNode(dom.hasClass(math,cmjd) ? TEX.substring(14,TEX.length -1): TEX);//on enlève \displaystyle{...}
+            math.insertBefore(form,math.firstChild);
+            
+            dom.removeClass(math,cmjv);
+            dom.addClass(math,cmje);
+            t.mathedit = math;
+            
+            //gestion du curseur
+            t._selection(math);
+            //pb : le path en haut en bas est trop long (pb de mise à jour)
+            t.cleanPath = true;//ne marche pas !
+            ed.nodeChanged();
+            
+            //rendre la formule en cours de traitement ...
+            t._mathPreview(math);
+        },
+        
         _globalMathTypeset: function(mathID, spanID){
             var t = this, ed = t.editor, dom = t.dom, maths = [], i, m;
             
             function updateJAX(tab){
+            	console.log('updateJAX');
+            	var script = null;
                 for(var k = 0 ;k < tab.length; k++){
-                    t.JAX[tab[k].lastChild.id.substring(16)-1] = tab[k].lastChild.MathJax;
-                    tab[k].lastChild.text = t._norm(tab[k].lastChild.text);
+                	script = tab[k].querySelector('script');
+                    t.JAX[script.id.substring(16)-1] = script.MathJax;
+                    script.text = t._norm(script.text);
                     if(k==0) {
                         t.mathBox.removeAttribute("style");
                         dom.remove(t.mathBox);
@@ -429,48 +410,18 @@
                     updateJAX(maths);
                 });
             });
-            //            t.queue.Push(function(){
-            //                for(var k = 0 ; k < maths.length; k++){
-            //                    t.JAX[maths[k].lastChild.id.substring(16)-1] = maths[k].lastChild.MathJax;
-            //                    if(k==0) {
-            //                        t.mathBox.removeAttribute("style");
-            //                        dom.remove(t.mathBox);
-            //                    }
-            //                }
-            //            });
-            //            
-            //            if(mathID && spanID){
-            //                t.queue.Push(function(){
-            //                    t.MathJax.ElementJax.ID = mathID;
-            //                    t.MathJax.OutputJax["HTML-CSS"].ID = spanID;
-            //                });
-            //            }
             
             t.win.setTimeout(function(){
                 t._cleanMessage();
             },1000);
-            
-        //            for (i = 0; i < maths.length; i++) {
-        //                dom.addClass(maths[i],cmjv);
-        //                dom.hasClass(maths[i],cmje) && dom.removeClass(maths[i],cmje);
-        //                t.queue.Push(function(){
-        //                    t.MathJax.Hub.Typeset(maths[i])
-        //                },function(){
-        //                    t.JAX[maths[i].lastChild.id.substring(16)-1] = maths[i].lastChild.MathJax;
-        //                    if(i == 0){
-        //                        t.mathBox.removeAttribute("style");
-        //                        dom.remove(t.mathBox);
-        //                    }
-        //                })
-        //            }
         },
         
         _mathTypeset : function(math){
-            var t = this, ed = t.editor, dom = t.dom, jax = null, TEX;
+            var t = this, ed = t.editor, dom = t.dom, jax = null, TEX, script=math.querySelector('script');
             
             TEX = math.firstChild.data;
             TEX = t._norm(TEX);
-            if(tinymce.isWebKit) TEX = TEX.substring(1,TEX.length-1); //on enlève les $$.(bug wekkit)
+//            if(tinymce.isWebKit) TEX = TEX.substring(1,TEX.length-1); //on enlève les $$.(bug wekkit)
             //on gère le curseur si on entre directement dans une autre formule ?
             var m = t._ismath(ed.selection.getNode());
             if(m && m.nextSibling)  {
@@ -481,23 +432,25 @@
             dom.addClass(math,cmjv);
             dom.hasClass(math,cmje) && dom.removeClass(math,cmje);
             
-            if(math.lastChild.tagName != 'SCRIPT'){
+            
+            if(!script){//premier rendu de math
                 math.firstChild.data = dom.hasClass(math,cmji) ? "\\("+TEX+"\\)" : "\\(\\displaystyle{"+TEX+"}\\)";
                 t.queue.Push(function(){
                     t.MathJax.Hub.Typeset(math);
                 },function(){
-                    t.JAX[math.lastChild.id.substring(16)-1] = math.lastChild.MathJax;
+                	script = math.querySelector('script');
+                    t.JAX[script.id.substring(16)-1] = script.MathJax;
                 });
-            } else {
+            } else {//mise à jour
                 dom.remove(math.firstChild);
-                if(!math.lastChild.MathJax) math.lastChild.MathJax = t.JAX[math.lastChild.id.substring(16)-1];
-                jax = t.JAX[math.lastChild.id.substring(16)-1].elementJax;//console.log(jax);
+                if(!script.MathJax) script.MathJax = t.JAX[script.id.substring(16)-1];
+                jax = t.JAX[script.id.substring(16)-1].elementJax;//console.log(jax);
                 t.queue.Push(function(){
                     dom.hasClass(math,cmjd) ? jax.Text("\\displaystyle{"+TEX+"}") : jax.Text(TEX);
                 },function(){
                     var tab = dom.select(".MathJax",math);//console.log(tab);
                     if(tab.length != 0) tab[tab.length-1].setAttribute("style","");
-                    t.JAX[math.lastChild.id.substring(16)-1] = math.lastChild.MathJax;
+                    t.JAX[script.id.substring(16)-1] = script.MathJax;
                 });
             }
         },
@@ -546,10 +499,6 @@
                 newtext += text.substring(lastIndex,match.index);
                 lastIndex = motif.lastIndex;
                 newtext += '<span class="'+cmj+' '+(match[1]=='$' ? cmji : cmjd)+'">\\('+match[2]+'\\)</span>';
-            //                if(match[2] == "span") newtext += match[0];
-            //                else {
-            //                    newtext += '<span class="'+cmj+' '+(match[3]=='$' ? cmji : cmjd)+'">\\('+match[4]+'\\)</span>';
-            //                }
             }
             newtext += text.substring(lastIndex,text.length);
             return newtext;
@@ -587,9 +536,9 @@
         },
         
         _selection: function(node){
-            var t = this, ed = t.editor, win = t.win, dom = t.dom, child = node.firstChild, sel = ed.selection;
+            var t = this, ed = t.editor, dom = t.dom, child = node.firstChild, sel = ed.selection;
             if(!child) {//une nouvelle formule vient d'être insérée.
-                dom.add(node,t.doc.createTextNode(tinymce.isWebKit ? "\u200B\u200B":""));
+                dom.add(node,t.doc.createTextNode(""));
                 child = node.firstChild;
 //                console.log(child.nodeType);
             }
@@ -597,8 +546,8 @@
             var rng = ed.selection.getRng();
             //rng.selectNodeContents(node);
             //rng.collapse(true);//de quel côté entre-t-on ?
-            rng.setStart(child,(tinymce.isWebKit ? 1 : 0));
-            rng.setEnd(child,(tinymce.isWebKit ? 1 : 0));
+            rng.setStart(child,0);
+            rng.setEnd(child,0);
             sel.setRng(rng);
 //            console.log(sel);
         },
@@ -616,18 +565,18 @@
             t.mathViewHandler = null;
         },
         
-        //gère la prévisulation des formules (ainsi que les $ dans webkit ...)
+        //gère la prévisulation des formules
         _mathPreview: function(math){
-            var t = this, ed = t.editor, dom = t.dom, box = t.mathBox, TEX;
+            var t = this, ed = t.editor, dom = t.dom, box = t.mathBox, TEX ="", script = box.querySelector('script');
             
             dom.add(ed.getBody(),box);
             var dynmath = null;
-            if(!box.lastChild.MathJax) box.lastChild.MathJax = t.JAX[0];
+            if(!script.MathJax) script.MathJax = t.JAX[0];
             dynmath = t.JAX[0].elementJax;
             //sert à initialiser le rendu ...
             t.queue.Push(function(){
                 TEX = math.firstChild ? math.firstChild.data : "";
-                if(tinymce.isWebKit) TEX = TEX.substring(1,TEX.length-1);
+//                if(tinymce.isWebKit) TEX = TEX.substring(1,TEX.length-1);
             },function(){
                 dynmath.Text("\\displaystyle{"+TEX+"}");
             });
@@ -694,7 +643,6 @@
                 }
             });
         },
-        
         
         _nettoyer : function(){
             var t = this;

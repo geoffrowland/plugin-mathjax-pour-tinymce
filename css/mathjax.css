@@ -13,9 +13,12 @@
 
 .mcemathedit {
 /*    position: relative;*/
-    border: 1px solid red;
-    background-color: yellow;
-/*     padding: 3px 5px; */
+/*     border: 1px solid red; */
+/*     background-color: yellow; */
+    font-size : larger;
+    font-weight: bold;
+	color : blueviolet;
+/*     margin: 0px 5px; */
 }
 
 #mcemathjaxbox {
