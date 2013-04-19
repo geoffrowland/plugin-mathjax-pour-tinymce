@@ -81,11 +81,11 @@
                 t._mathjaxInit(url);
                 t._testSchemaSettings();
                 
-                //sert à inserer une formule
-                ed.formatter.register('math',{
-                	inline:"span",
-                	attributes: {'class':cmj+' '+cmji+' '+cmje}
-                });
+//                //sert à inserer une formule
+//                ed.formatter.register('math',{
+//                	inline:"span",
+//                	attributes: {'class':cmj+' '+cmji+' '+cmje}
+//                });
             });
             
             // Lorsque le document est chargé dans l'éditeur 
@@ -148,16 +148,17 @@
                 }
             });
             
-            ed.onNodeChange.add(function(ed, cm, n, c) {//cm->controlManager, n == ed.selection.getNode(), c-> collapsed ?
+            ed.onNodeChange.add(function(ed, cm, n, c,o) {//cm->controlManager, n == ed.selection.getNode(), c-> collapsed ?
                 //console.log("NodeChange :", arguments,"\nUndoManager",ed.undoManager);
                 var dom = t.dom, cmp = t.completion; 
+                if(o) console.log(o.truc);
                 
                 if(!(t.MathJax && t.actif)) return;
                 
-                if (t.cleanPath){
-                	t.cleanPath = !t.cleanPath;
-                	return;
-                }
+//                if (t.cleanPath){
+//                	t.cleanPath = !t.cleanPath;
+//                	return;
+//                }
                 
                 //on profite du nodeChange initial au retour du mode fullscreen pour recalculer les maths
                 if(t.fullscreenInit && ed.id.indexOf("fullscreen") == -1){
@@ -302,10 +303,9 @@
         },
         
         insertMath: function(math){
-        	var t = this, ed = t.editor, dom = t.dom;
+        	var t = this, ed = t.editor, dom = t.dom, entity = null;
         	each(ed.controlManager.controls,function(v,k){ v.setDisabled(1);});
-        	//bof, est-ce bien utile ?
-            if(math) {//si on est déjà dans une formule, on change de mode : mode en ligne -> mode block ou le contraire.
+            if(math) {//si on est déjà dans une formule, on change de mode : mode en ligne -> mode block ou le contraire. (bof, est-ce bien utile ?)
                 if(dom.hasClass(math,cmjv)) return;
                 dom.hasClass(math,cmji)?
                 math.setAttribute("class",cmj+" "+cmjd+" "+cmje):
@@ -313,9 +313,20 @@
                 return;
             }
             
-            //On insère une formule en édition 
-            ed.formatter.apply('math');
-            var entity = ed.selection.getStart();                    
+            //On insère une formule en édition
+//            ed.formatter.apply('math');
+            ed.selection.setContent('<span id="tmp" class="'+cmj+' '+cmji+' '+cmje+'">$$</span>');
+            entity = dom.get('tmp');
+            entity.removeAttribute('id');
+//            entity = ed.selection.getStart();
+            //ed.selection.setContent('$$');entity.normalize();
+            //ed.selection.select(entity.firstChild);
+            var rng = ed.selection.getRng();
+            rng.setStart(entity.firstChild,1);
+            rng.setEnd(entity.firstChild,1);
+            //console.log(rng);
+            ed.selection.setRng(rng);
+            //ed.selection.setCursorLocation(entity.childNodes[0],1);
             //rendre la formule en cours de traitement ...
             if(t.MathJax) t._mathPreview(entity);
 
@@ -328,6 +339,7 @@
         	if(t.mathedit && t.mathedit !== math){
                 t._removeMathHandler();
             }
+        	console.log('view2edit');
             //Pour la formule courante
             tab = dom.select(".MathJax",math);//console.log(tab);
             if(tab.length != 0) tab[tab.length-1].setAttribute("style","display:none;");
@@ -343,7 +355,7 @@
             t._selection(math);
             //pb : le path en haut en bas est trop long (pb de mise à jour)
             t.cleanPath = true;//ne marche pas !
-            ed.nodeChanged();
+            ed.nodeChanged({truc:'cool'});
             
             //rendre la formule en cours de traitement ...
             t._mathPreview(math);
@@ -523,16 +535,16 @@
             return content;
         },
         
-        //MathJax pollue le document (body) avec trois div (deux au début, la dernière tout à la fin)
+        //MathJax pollue le document (body) avec trois div (deux au début, la dernière tout à la fin) est-ce vraiment utile ?
         _cleanMessage : function(){
-            var dom = this.dom;
-            var el1 = dom.get("MathJax_Hidden");
-            if(el1) el1 = el1.parentNode;
-            var el2 = dom.get("MathJax_Message");
-            var el3 = dom.select("body > div[style]:last-child")[0];
-            if(el1) dom.remove(el1);
-            if(el2) dom.remove(el2);
-            if(el3) dom.remove(el3);
+//            var dom = this.dom;
+//            var el1 = dom.get("MathJax_Hidden");
+//            if(el1) el1 = el1.parentNode;
+//            var el2 = dom.get("MathJax_Message");
+//            var el3 = dom.select("body > div[style]:last-child")[0];
+//            if(el1) dom.remove(el1);
+//            if(el2) dom.remove(el2);
+//            if(el3) dom.remove(el3);
         },
         
         _selection: function(node){
@@ -543,7 +555,7 @@
 //                console.log(child.nodeType);
             }
             //sel.setNode(node);
-            var rng = ed.selection.getRng();
+            var rng = sel.getRng();
             //rng.selectNodeContents(node);
             //rng.collapse(true);//de quel côté entre-t-on ?
             rng.setStart(child,0);
@@ -576,6 +588,7 @@
             //sert à initialiser le rendu ...
             t.queue.Push(function(){
                 TEX = math.firstChild ? math.firstChild.data : "";
+                TEX = TEX.replace(/\$/g,"");
 //                if(tinymce.isWebKit) TEX = TEX.substring(1,TEX.length-1);
             },function(){
                 dynmath.Text("\\displaystyle{"+TEX+"}");
@@ -596,6 +609,7 @@
 //                        }
 //                    }
                     TEX = math.firstChild ? math.firstChild.data : "";
+                    TEX = TEX.replace(/\$/g,"");
                     //if(tinymce.isWebKit) TEX = TEX.substring(1,TEX.length-1);
                     t.queue.Push(function(){
                         dynmath.Text("\\displaystyle{"+TEX+"}");
@@ -653,9 +667,10 @@
             t.mathBox = null;
         },
         
-        //insère un espace autour des inégalités strictes 
+        //insère un espace autour des inégalités strictes et enlève les $
         _norm : function(str){
             var text = str;
+            text = text.replace(/\$/g,"");
             text = text.replace(/(<|>)(?=[^\s])/gi,"$1 ");
             text = text.replace(/(?=[^\s])(<|>)/gi," $1");
             return text;
